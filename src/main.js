@@ -62,12 +62,12 @@ const modelOptions = {
     label: "Port Haven",
     location: "Port Haven",
     title: "Outdoor Gym 3D Review",
-    url: "/models/port-haven-outdoor-gym.glb?v=20260628-textured-r2",
+    url: "/models/port-haven-outdoor-gym.glb?v=20260628-packsaddle-style",
     asset: "port-haven-outdoor-gym.glb",
     rootName: "Port Haven outdoor gym model",
     targetSize: 26,
     rotationY: Math.PI,
-    groundColor: 0x5f665d,
+    groundColor: 0x6e4a35,
     viewPresets: {
       overall: {
         label: "Overall",
