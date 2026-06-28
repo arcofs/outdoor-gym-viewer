@@ -7,38 +7,99 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { createIcons, Maximize2, RotateCcw, Ruler, SunMedium, View, ZoomIn } from "lucide";
 import "./styles.css";
 
-const MODEL_URL = "/models/outdoor-gym.glb";
+const MODEL_STORAGE_KEY = "outdoor-gym-selected-model";
 
-const viewPresets = {
-  overall: {
-    label: "Overall",
-    icon: "view",
-    position: new Vector3(16, 9, -20),
-    target: new Vector3(0, 1.5, 0),
+const modelAliases = {
+  portHaven: "port-haven",
+  port_haven: "port-haven",
+};
+
+const modelOptions = {
+  packsaddle: {
+    label: "Packsaddle",
+    location: "Packsaddle Village",
+    title: "Outdoor Gym 3D Review",
+    url: "/models/packsaddle-outdoor-gym.glb",
+    asset: "packsaddle-outdoor-gym.glb",
+    rootName: "Packsaddle outdoor gym model",
+    targetSize: 26,
+    rotationY: Math.PI,
+    groundColor: 0x6e4a35,
+    viewPresets: {
+      overall: {
+        label: "Overall",
+        icon: "view",
+        position: new Vector3(16, 9, -20),
+        target: new Vector3(0, 1.5, 0),
+      },
+      d01: {
+        label: "D01 Ramp",
+        icon: "ruler",
+        position: new Vector3(10, 3.8, -14),
+        target: new Vector3(3.6, 0.55, -8.1),
+      },
+      d02: {
+        label: "D02 Ramp",
+        icon: "ruler",
+        position: new Vector3(10, 4.2, 17),
+        target: new Vector3(4.5, 0.55, 10.2),
+      },
+      side: {
+        label: "Side Wall",
+        icon: "zoom-in",
+        position: new Vector3(13, 3.5, -9),
+        target: new Vector3(1.6, 1.35, -5.2),
+      },
+      roof: {
+        label: "Roof",
+        icon: "sun-medium",
+        position: new Vector3(8, 12, -12),
+        target: new Vector3(0, 3.1, 0),
+      },
+    },
   },
-  d01: {
-    label: "D01 Ramp",
-    icon: "ruler",
-    position: new Vector3(10, 3.8, -14),
-    target: new Vector3(3.6, 0.55, -8.1),
-  },
-  d02: {
-    label: "D02 Ramp",
-    icon: "ruler",
-    position: new Vector3(10, 4.2, 17),
-    target: new Vector3(4.5, 0.55, 10.2),
-  },
-  side: {
-    label: "Side Wall",
-    icon: "zoom-in",
-    position: new Vector3(13, 3.5, -9),
-    target: new Vector3(1.6, 1.35, -5.2),
-  },
-  roof: {
-    label: "Roof",
-    icon: "sun-medium",
-    position: new Vector3(8, 12, -12),
-    target: new Vector3(0, 3.1, 0),
+  "port-haven": {
+    label: "Port Haven",
+    location: "Port Haven",
+    title: "Outdoor Gym 3D Review",
+    url: "/models/port-haven-outdoor-gym.glb",
+    asset: "port-haven-outdoor-gym.glb",
+    rootName: "Port Haven outdoor gym model",
+    targetSize: 26,
+    rotationY: Math.PI,
+    groundColor: 0x5f665d,
+    viewPresets: {
+      overall: {
+        label: "Overall",
+        icon: "view",
+        position: new Vector3(17, 9, -20),
+        target: new Vector3(0, 1.5, 0),
+      },
+      d01: {
+        label: "D01 Door",
+        icon: "ruler",
+        position: new Vector3(-16, 3.8, 1.5),
+        target: new Vector3(-9.7, 1.2, 0),
+      },
+      d02: {
+        label: "D02 Door",
+        icon: "ruler",
+        position: new Vector3(-6, 4.1, -14),
+        target: new Vector3(-6.8, 1.1, -5.4),
+      },
+      side: {
+        label: "Side Wall",
+        icon: "zoom-in",
+        position: new Vector3(14, 3.8, -8),
+        target: new Vector3(2.2, 1.4, -4.8),
+      },
+      roof: {
+        label: "Roof",
+        icon: "sun-medium",
+        position: new Vector3(8, 12, -12),
+        target: new Vector3(0, 3.1, 0),
+      },
+    },
   },
 };
 
@@ -52,9 +113,10 @@ app.innerHTML = `
         <img src="/logos/bhp.png" alt="BHP" class="logo logo-bhp" />
       </div>
       <div class="project-title">
-        <span>Packsaddle Village</span>
-        <strong>Outdoor Gym 3D Review</strong>
+        <span id="projectLocation">Packsaddle Village</span>
+        <strong id="projectName">Outdoor Gym 3D Review</strong>
       </div>
+      <div class="model-switcher" id="modelSwitcher" role="group" aria-label="Select gym model"></div>
       <button class="icon-button" id="fullscreenButton" type="button" aria-label="Fullscreen" title="Fullscreen">
         <i data-lucide="maximize-2"></i>
       </button>
@@ -85,11 +147,11 @@ app.innerHTML = `
       </div>
       <div>
         <span class="status-label">Asset</span>
-        <strong>outdoor-gym.glb</strong>
+        <strong id="assetStatus">packsaddle-outdoor-gym.glb</strong>
       </div>
       <div>
         <span class="status-label">Review</span>
-        <strong>Client 3D Viewer</strong>
+        <strong id="reviewStatus">2 Gym Models</strong>
       </div>
     </section>
   </main>
@@ -99,8 +161,19 @@ const canvas = document.querySelector("#viewerCanvas");
 const loadPanel = document.querySelector("#loadPanel");
 const loadProgress = document.querySelector("#loadProgress");
 const modelStatus = document.querySelector("#modelStatus");
+const assetStatus = document.querySelector("#assetStatus");
+const reviewStatus = document.querySelector("#reviewStatus");
+const projectLocation = document.querySelector("#projectLocation");
+const projectName = document.querySelector("#projectName");
+const modelSwitcher = document.querySelector("#modelSwitcher");
 const toast = document.querySelector("#toast");
 const viewButtons = document.querySelector("#viewButtons");
+
+let activeModelKey = getInitialModelKey();
+let activeModel = modelOptions[activeModelKey];
+let modelRoot = null;
+let modelBounds = null;
+let loadToken = 0;
 
 const scene = new THREE.Scene();
 scene.background = new Color(0x14181d);
@@ -120,7 +193,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 250);
-camera.position.copy(viewPresets.overall.position);
+camera.position.copy(activeModel.viewPresets.overall.position);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -128,7 +201,7 @@ controls.dampingFactor = 0.065;
 controls.maxPolarAngle = Math.PI * 0.49;
 controls.minDistance = 4;
 controls.maxDistance = 52;
-controls.target.copy(viewPresets.overall.target);
+controls.target.copy(activeModel.viewPresets.overall.target);
 
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
 scene.environment = pmremGenerator.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -155,7 +228,7 @@ scene.add(fill);
 const ground = new THREE.Mesh(
   new THREE.CircleGeometry(46, 96),
   new THREE.MeshStandardMaterial({
-    color: 0x6e4a35,
+    color: activeModel.groundColor,
     roughness: 0.95,
     metalness: 0,
   }),
@@ -166,19 +239,11 @@ ground.position.y = -0.24;
 ground.receiveShadow = true;
 scene.add(ground);
 
-let modelRoot = null;
-let modelBounds = null;
 const raycaster = new Raycaster();
 const pointer = new Vector2();
 
-Object.entries(viewPresets).forEach(([key, preset]) => {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "control-button";
-  button.dataset.view = key;
-  button.innerHTML = `<i data-lucide="${preset.icon}"></i><span>${preset.label}</span>`;
-  viewButtons.appendChild(button);
-});
+createModelSwitcher();
+selectModel(activeModelKey, { updateUrl: false, instantCamera: true });
 createIcons({
   icons: {
     Maximize2,
@@ -190,11 +255,9 @@ createIcons({
   },
 });
 
-document.querySelectorAll("[data-view]").forEach((button) => {
-  button.addEventListener("click", () => flyTo(viewPresets[button.dataset.view]));
+document.querySelector("#resetButton").addEventListener("click", () => {
+  flyTo(activeModel.viewPresets.overall);
 });
-
-document.querySelector("#resetButton").addEventListener("click", () => flyTo(viewPresets.overall));
 document.querySelector("#fullscreenButton").addEventListener("click", () => {
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen().catch(() => showToast("Fullscreen unavailable"));
@@ -208,6 +271,124 @@ canvas.addEventListener("pointermove", (event) => {
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 });
+
+function createModelSwitcher() {
+  Object.entries(modelOptions).forEach(([key, model]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "model-option";
+    button.dataset.model = key;
+    button.textContent = model.label;
+    button.addEventListener("click", () => {
+      if (key !== activeModelKey) selectModel(key);
+    });
+    modelSwitcher.appendChild(button);
+  });
+}
+
+function createViewButtons() {
+  viewButtons.innerHTML = "";
+  Object.entries(activeModel.viewPresets).forEach(([key, preset]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "control-button";
+    button.dataset.view = key;
+    button.innerHTML = `<i data-lucide="${preset.icon}"></i><span>${preset.label}</span>`;
+    button.addEventListener("click", () => flyTo(activeModel.viewPresets[key]));
+    viewButtons.appendChild(button);
+  });
+  createIcons({
+    icons: {
+      Maximize2,
+      RotateCcw,
+      Ruler,
+      SunMedium,
+      View,
+      ZoomIn,
+    },
+  });
+}
+
+function selectModel(modelKey, { updateUrl = true, instantCamera = false } = {}) {
+  const nextModel = modelOptions[modelKey];
+  if (!nextModel) return;
+
+  activeModelKey = modelKey;
+  activeModel = nextModel;
+  storeSelectedModel(modelKey);
+  updateModelMeta();
+  updateModelSwitcher();
+  createViewButtons();
+  loadModel(activeModel);
+
+  if (updateUrl) updateModelUrl(modelKey);
+  if (instantCamera) {
+    moveToPreset(activeModel.viewPresets.overall);
+  } else {
+    flyTo(activeModel.viewPresets.overall);
+  }
+}
+
+function updateModelMeta() {
+  projectLocation.textContent = activeModel.location;
+  projectName.textContent = activeModel.title;
+  assetStatus.textContent = activeModel.asset;
+  reviewStatus.textContent = `${Object.keys(modelOptions).length} Gym Models`;
+  document.title = `${activeModel.label} Outdoor Gym Viewer`;
+}
+
+function updateModelSwitcher() {
+  document.querySelectorAll("[data-model]").forEach((button) => {
+    const isActive = button.dataset.model === activeModelKey;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
+function updateModelUrl(modelKey) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("gym", modelKey);
+  window.history.replaceState({}, "", url);
+}
+
+function getInitialModelKey() {
+  const params = new URLSearchParams(window.location.search);
+  const gymParam = resolveModelKey(params.get("gym"));
+  if (gymParam) return gymParam;
+
+  const storedModel = resolveModelKey(getStoredModel());
+  if (storedModel) return storedModel;
+
+  return "packsaddle";
+}
+
+function resolveModelKey(modelKey) {
+  if (!modelKey) return null;
+  if (modelOptions[modelKey]) return modelKey;
+  return modelAliases[modelKey] ?? null;
+}
+
+function getStoredModel() {
+  try {
+    return window.localStorage.getItem(MODEL_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeSelectedModel(modelKey) {
+  try {
+    window.localStorage.setItem(MODEL_STORAGE_KEY, modelKey);
+  } catch {
+    // Browser privacy settings can block storage; the URL selector still works.
+  }
+}
+
+function moveToPreset(preset) {
+  camera.position.copy(preset.position);
+  controls.target.copy(preset.target);
+  controls.update();
+}
 
 function flyTo(preset) {
   const startPosition = camera.position.clone();
@@ -233,20 +414,24 @@ function showToast(message) {
   showToast.timer = window.setTimeout(() => toast.classList.remove("is-visible"), 2000);
 }
 
-function normaliseModel(root) {
+function normaliseModel(root, config) {
+  root.position.set(0, 0, 0);
+  root.rotation.set(0, config.rotationY ?? 0, 0);
+  root.scale.setScalar(1);
+  root.updateWorldMatrix(true, true);
+
   modelBounds = new Box3().setFromObject(root);
   const center = modelBounds.getCenter(new Vector3());
   root.position.sub(center);
-  root.rotation.y = Math.PI;
   root.updateWorldMatrix(true, true);
-  modelBounds = new Box3().setFromObject(root);
 
+  modelBounds = new Box3().setFromObject(root);
   const size = modelBounds.getSize(new Vector3());
   const maxAxis = Math.max(size.x, size.y, size.z);
-  const targetSize = 26;
-  const scale = targetSize / maxAxis;
+  const scale = (config.targetSize ?? 26) / maxAxis;
   root.scale.setScalar(scale);
   root.updateWorldMatrix(true, true);
+
   modelBounds = new Box3().setFromObject(root);
   const bottom = modelBounds.min.y;
   root.position.y -= bottom;
@@ -257,41 +442,80 @@ function normaliseModel(root) {
     node.castShadow = true;
     node.receiveShadow = true;
     if (node.material) {
-      node.material.side = THREE.FrontSide;
-      node.material.needsUpdate = true;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((material) => {
+        material.side = THREE.FrontSide;
+        material.needsUpdate = true;
+      });
     }
   });
 }
 
-function loadModel() {
+function loadModel(config) {
+  const token = ++loadToken;
   const loader = new GLTFLoader();
   const dracoLoader = new DRACOLoader();
   dracoLoader.setDecoderPath("/draco/");
   dracoLoader.setDecoderConfig({ type: "wasm" });
   loader.setDRACOLoader(dracoLoader);
+
+  if (modelRoot) {
+    scene.remove(modelRoot);
+    disposeModel(modelRoot);
+    modelRoot = null;
+    modelBounds = null;
+  }
+
+  ground.material.color.setHex(config.groundColor);
+  modelStatus.textContent = "Loading";
+  loadProgress.textContent = "Preparing scene";
+  loadPanel.classList.remove("is-hidden");
+
   loader.load(
-    MODEL_URL,
+    config.url,
     (gltf) => {
+      dracoLoader.dispose();
+      if (token !== loadToken) {
+        disposeModel(gltf.scene);
+        return;
+      }
+
       modelRoot = gltf.scene;
-      modelRoot.name = "Outdoor gym model";
-      normaliseModel(modelRoot);
+      modelRoot.name = config.rootName;
+      normaliseModel(modelRoot, config);
       scene.add(modelRoot);
       modelStatus.textContent = "Ready";
       loadPanel.classList.add("is-hidden");
-      showToast("Model ready");
+      showToast(`${config.label} model ready`);
     },
     (event) => {
-      if (!event.total) return;
+      if (token !== loadToken || !event.total) return;
       const percent = Math.round((event.loaded / event.total) * 100);
       loadProgress.textContent = `${percent}%`;
     },
     (error) => {
+      dracoLoader.dispose();
+      if (token !== loadToken) return;
       console.error(error);
       modelStatus.textContent = "Model unavailable";
       loadProgress.textContent = "Unable to load model";
       showToast("Model failed to load");
     },
   );
+}
+
+function disposeModel(root) {
+  root.traverse((node) => {
+    if (!node.isMesh) return;
+    node.geometry?.dispose();
+    const materials = Array.isArray(node.material) ? node.material : [node.material];
+    materials.filter(Boolean).forEach((material) => {
+      Object.values(material).forEach((value) => {
+        if (value?.isTexture) value.dispose();
+      });
+      material.dispose?.();
+    });
+  });
 }
 
 function resize() {
@@ -313,5 +537,4 @@ function animate() {
 
 window.addEventListener("resize", resize);
 
-loadModel();
 animate();

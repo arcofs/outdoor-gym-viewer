@@ -60,7 +60,7 @@ button {
   left: 18px;
   right: 18px;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 16px;
   height: 66px;
@@ -69,6 +69,44 @@ button {
   background: rgba(16, 19, 23, 0.76);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(18px);
+}
+
+.model-switcher {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 2px;
+  min-width: 244px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.model-option {
+  min-width: 116px;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 4px;
+  color: #dce3ea;
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 720;
+  letter-spacing: 0;
+  white-space: nowrap;
+  transition:
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.model-option:hover {
+  color: #fffaf0;
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.model-option.is-active {
+  color: #181a1e;
+  background: #f2a900;
 }
 
 .brand-lockup {
@@ -150,6 +188,13 @@ button {
   transform: translateY(-1px);
 }
 
+.icon-button:focus-visible,
+.control-button:focus-visible,
+.model-option:focus-visible {
+  outline: 2px solid #f2a900;
+  outline-offset: 2px;
+}
+
 .icon-button {
   width: 44px;
   height: 44px;
@@ -207,7 +252,7 @@ button {
   grid-template-columns: repeat(3, minmax(112px, 1fr));
   gap: 1px;
   overflow: hidden;
-  max-width: min(560px, calc(100vw - 206px));
+  max-width: min(640px, calc(100vw - 206px));
   border: 1px solid rgba(255, 255, 255, 0.14);
   background: rgba(255, 255, 255, 0.12);
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.20);
@@ -319,6 +364,7 @@ button {
     right: 10px;
     grid-template-columns: 1fr auto;
     height: auto;
+    gap: 10px;
   }
 
   .brand-lockup {
@@ -329,6 +375,20 @@ button {
   .project-title {
     grid-column: 1 / -1;
     grid-row: 2;
+  }
+
+  .model-switcher {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    grid-auto-flow: initial;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    min-width: 0;
+    width: 100%;
+  }
+
+  .model-option {
+    min-width: 0;
+    font-size: 12px;
   }
 
   .project-title strong {
