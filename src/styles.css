@@ -167,7 +167,8 @@ button {
 }
 
 .icon-button,
-.control-button {
+.control-button,
+.move-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -182,7 +183,8 @@ button {
 }
 
 .icon-button:hover,
-.control-button:hover {
+.control-button:hover,
+.move-button:hover {
   border-color: rgba(255, 255, 255, 0.32);
   background: rgba(255, 255, 255, 0.14);
   transform: translateY(-1px);
@@ -190,6 +192,7 @@ button {
 
 .icon-button:focus-visible,
 .control-button:focus-visible,
+.move-button:focus-visible,
 .model-option:focus-visible {
   outline: 2px solid #f2a900;
   outline-offset: 2px;
@@ -201,10 +204,85 @@ button {
 }
 
 .icon-button svg,
-.control-button svg {
+.control-button svg,
+.move-button svg,
+.move-pad-mark svg {
   width: 18px;
   height: 18px;
   stroke-width: 2;
+}
+
+.move-pad {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  bottom: 106px;
+  display: grid;
+  grid-template-columns: repeat(4, 38px);
+  grid-template-rows: repeat(3, 38px);
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(16, 19, 23, 0.66);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.20);
+  transform: translateX(-50%);
+  backdrop-filter: blur(16px);
+}
+
+.move-button {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 6px;
+  box-shadow: none;
+  touch-action: none;
+}
+
+.move-button:active {
+  border-color: rgba(242, 169, 0, 0.75);
+  color: #181a1e;
+  background: #f2a900;
+  transform: translateY(0);
+}
+
+.move-button--forward {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.move-button--left {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.move-button--right {
+  grid-column: 3;
+  grid-row: 2;
+}
+
+.move-button--backward {
+  grid-column: 2;
+  grid-row: 3;
+}
+
+.move-button--up {
+  grid-column: 4;
+  grid-row: 1;
+}
+
+.move-button--down {
+  grid-column: 4;
+  grid-row: 3;
+}
+
+.move-pad-mark {
+  display: inline-flex;
+  grid-column: 2;
+  grid-row: 2;
+  align-items: center;
+  justify-content: center;
+  color: rgba(247, 242, 232, 0.68);
+  pointer-events: none;
 }
 
 .control-rail {
@@ -420,7 +498,7 @@ button {
   .status-strip {
     left: 10px;
     right: 10px;
-    bottom: 202px;
+    bottom: 214px;
     max-width: none;
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -431,5 +509,59 @@ button {
 
   .status-strip strong {
     font-size: 12px;
+  }
+
+  .move-pad {
+    right: 10px;
+    bottom: 154px;
+    left: 10px;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-rows: 36px;
+    width: auto;
+    padding: 6px;
+    gap: 5px;
+    transform: none;
+  }
+
+  .move-button {
+    width: 100%;
+    height: 36px;
+  }
+
+  .move-pad-mark {
+    display: none;
+  }
+
+  .move-button--forward,
+  .move-button--left,
+  .move-button--right,
+  .move-button--backward,
+  .move-button--up,
+  .move-button--down {
+    grid-row: 1;
+  }
+
+  .move-button--forward {
+    grid-column: 1;
+  }
+
+  .move-button--backward {
+    grid-column: 2;
+  }
+
+  .move-button--left {
+    grid-column: 3;
+  }
+
+  .move-button--right {
+    grid-column: 4;
+  }
+
+  .move-button--up {
+    grid-column: 5;
+  }
+
+  .move-button--down {
+    grid-column: 6;
   }
 }

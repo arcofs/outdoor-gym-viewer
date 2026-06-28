@@ -4,10 +4,41 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { createIcons, Maximize2, RotateCcw, Ruler, SunMedium, View, ZoomIn } from "lucide";
+import {
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowUpFromLine,
+  createIcons,
+  Maximize2,
+  Move3d,
+  RotateCcw,
+  Ruler,
+  SunMedium,
+  View,
+  ZoomIn,
+} from "lucide";
 import "./styles.css";
 
 const MODEL_STORAGE_KEY = "outdoor-gym-selected-model";
+
+const iconSet = {
+  ArrowDown,
+  ArrowDownToLine,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowUpFromLine,
+  Maximize2,
+  Move3d,
+  RotateCcw,
+  Ruler,
+  SunMedium,
+  View,
+  ZoomIn,
+};
 
 const modelAliases = {
   portHaven: "port-haven",
@@ -130,6 +161,29 @@ app.innerHTML = `
         <span id="loadProgress">Preparing scene</span>
       </div>
       <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      <div class="move-pad" aria-label="Move camera">
+        <button class="move-button move-button--forward" data-move="forward" type="button" aria-label="Move forward" title="Move forward">
+          <i data-lucide="arrow-up"></i>
+        </button>
+        <button class="move-button move-button--left" data-move="left" type="button" aria-label="Move left" title="Move left">
+          <i data-lucide="arrow-left"></i>
+        </button>
+        <span class="move-pad-mark" aria-hidden="true">
+          <i data-lucide="move-3d"></i>
+        </span>
+        <button class="move-button move-button--right" data-move="right" type="button" aria-label="Move right" title="Move right">
+          <i data-lucide="arrow-right"></i>
+        </button>
+        <button class="move-button move-button--backward" data-move="backward" type="button" aria-label="Move backward" title="Move backward">
+          <i data-lucide="arrow-down"></i>
+        </button>
+        <button class="move-button move-button--up" data-move="up" type="button" aria-label="Move up" title="Move up">
+          <i data-lucide="arrow-up-from-line"></i>
+        </button>
+        <button class="move-button move-button--down" data-move="down" type="button" aria-label="Move down" title="Move down">
+          <i data-lucide="arrow-down-to-line"></i>
+        </button>
+      </div>
     </section>
 
     <aside class="control-rail" aria-label="View controls">
@@ -168,6 +222,7 @@ const projectName = document.querySelector("#projectName");
 const modelSwitcher = document.querySelector("#modelSwitcher");
 const toast = document.querySelector("#toast");
 const viewButtons = document.querySelector("#viewButtons");
+const moveButtons = document.querySelectorAll("[data-move]");
 
 let activeModelKey = getInitialModelKey();
 let activeModel = modelOptions[activeModelKey];
@@ -192,15 +247,29 @@ renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 250);
+const camera = new PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.05, 250);
 camera.position.copy(activeModel.viewPresets.overall.position);
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.dampingFactor = 0.065;
+controls.enablePan = true;
+controls.panSpeed = 0.95;
+controls.screenSpacePanning = true;
+controls.zoomSpeed = 0.9;
+controls.zoomToCursor = true;
 controls.maxPolarAngle = Math.PI * 0.49;
-controls.minDistance = 4;
-controls.maxDistance = 52;
+controls.minDistance = 0.75;
+controls.maxDistance = 58;
+controls.mouseButtons = {
+  LEFT: THREE.MOUSE.ROTATE,
+  MIDDLE: THREE.MOUSE.DOLLY,
+  RIGHT: THREE.MOUSE.PAN,
+};
+controls.touches = {
+  ONE: THREE.TOUCH.ROTATE,
+  TWO: THREE.TOUCH.DOLLY_PAN,
+};
 controls.target.copy(activeModel.viewPresets.overall.target);
 
 const pmremGenerator = new THREE.PMREMGenerator(renderer);
@@ -241,19 +310,38 @@ scene.add(ground);
 
 const raycaster = new Raycaster();
 const pointer = new Vector2();
+const moveForward = new Vector3();
+const moveRight = new Vector3();
+const moveDelta = new Vector3();
+const focusDirection = new Vector3();
+const focusPosition = new Vector3();
+const focusTarget = new Vector3();
+const moveDirections = ["forward", "backward", "left", "right", "up", "down"];
+const moveInputs = Object.fromEntries(moveDirections.map((direction) => [direction, new Set()]));
+const movementState = { boost: false };
+const keyMoveMap = new Map([
+  ["KeyW", "forward"],
+  ["ArrowUp", "forward"],
+  ["KeyS", "backward"],
+  ["ArrowDown", "backward"],
+  ["KeyA", "left"],
+  ["ArrowLeft", "left"],
+  ["KeyD", "right"],
+  ["ArrowRight", "right"],
+  ["KeyE", "up"],
+  ["PageUp", "up"],
+  ["KeyQ", "down"],
+  ["PageDown", "down"],
+]);
+const activeTouchPointers = new Set();
+
+let touchStart = null;
+let lastTap = null;
+let lastFrameTime = performance.now();
 
 createModelSwitcher();
 selectModel(activeModelKey, { updateUrl: false, instantCamera: true });
-createIcons({
-  icons: {
-    Maximize2,
-    RotateCcw,
-    Ruler,
-    SunMedium,
-    View,
-    ZoomIn,
-  },
-});
+refreshIcons();
 
 document.querySelector("#resetButton").addEventListener("click", () => {
   flyTo(activeModel.viewPresets.overall);
@@ -270,6 +358,44 @@ canvas.addEventListener("pointermove", (event) => {
   const rect = canvas.getBoundingClientRect();
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+});
+canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+canvas.addEventListener("dblclick", (event) => {
+  event.preventDefault();
+  focusOnSpot(event);
+});
+canvas.addEventListener("pointerdown", handleTouchStart);
+canvas.addEventListener("pointerup", handleTouchEnd);
+canvas.addEventListener("pointercancel", handleTouchCancel);
+
+moveButtons.forEach((button) => {
+  const direction = button.dataset.move;
+  const source = `button-${direction}`;
+
+  button.addEventListener("pointerdown", (event) => {
+    event.preventDefault();
+    button.setPointerCapture?.(event.pointerId);
+    setMovement(direction, source, true);
+    moveSingleDirection(direction, getButtonNudgeDistance());
+  });
+
+  const stopMoving = (event) => {
+    if (button.hasPointerCapture?.(event.pointerId)) {
+      button.releasePointerCapture(event.pointerId);
+    }
+    setMovement(direction, source, false);
+  };
+
+  button.addEventListener("pointerup", stopMoving);
+  button.addEventListener("pointercancel", stopMoving);
+  button.addEventListener("lostpointercapture", () => setMovement(direction, source, false));
+});
+
+window.addEventListener("keydown", (event) => handleKeyMovement(event, true));
+window.addEventListener("keyup", (event) => handleKeyMovement(event, false));
+window.addEventListener("blur", clearMovement);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) clearMovement();
 });
 
 function createModelSwitcher() {
@@ -297,16 +423,11 @@ function createViewButtons() {
     button.addEventListener("click", () => flyTo(activeModel.viewPresets[key]));
     viewButtons.appendChild(button);
   });
-  createIcons({
-    icons: {
-      Maximize2,
-      RotateCcw,
-      Ruler,
-      SunMedium,
-      View,
-      ZoomIn,
-    },
-  });
+  refreshIcons();
+}
+
+function refreshIcons() {
+  createIcons({ icons: iconSet });
 }
 
 function selectModel(modelKey, { updateUrl = true, instantCamera = false } = {}) {
@@ -412,6 +533,197 @@ function showToast(message) {
   toast.classList.add("is-visible");
   window.clearTimeout(showToast.timer);
   showToast.timer = window.setTimeout(() => toast.classList.remove("is-visible"), 2000);
+}
+
+function handleKeyMovement(event, isActive) {
+  if (isTypingTarget(event.target)) return;
+
+  if (event.code === "ShiftLeft" || event.code === "ShiftRight") {
+    movementState.boost = isActive;
+    return;
+  }
+
+  const direction = keyMoveMap.get(event.code);
+  if (!direction) return;
+
+  event.preventDefault();
+  setMovement(direction, `key-${event.code}`, isActive);
+}
+
+function isTypingTarget(target) {
+  return target?.matches?.("input, textarea, select, [contenteditable='true']");
+}
+
+function setMovement(direction, source, isActive) {
+  const inputs = moveInputs[direction];
+  if (!inputs) return;
+
+  if (isActive) {
+    inputs.add(source);
+  } else {
+    inputs.delete(source);
+  }
+}
+
+function clearMovement() {
+  Object.values(moveInputs).forEach((inputs) => inputs.clear());
+  movementState.boost = false;
+}
+
+function hasActiveMovement() {
+  return Object.values(moveInputs).some((inputs) => inputs.size > 0);
+}
+
+function isMoving(direction) {
+  return moveInputs[direction]?.size > 0;
+}
+
+function applyCameraMovement(deltaSeconds) {
+  if (!hasActiveMovement()) return;
+
+  const speed = getMovementSpeed() * (movementState.boost ? 2.35 : 1);
+  moveCameraByActiveDirections(speed * deltaSeconds);
+}
+
+function moveCameraByActiveDirections(distance) {
+  moveDelta.set(0, 0, 0);
+  updateMoveBasis();
+
+  if (isMoving("forward")) moveDelta.add(moveForward);
+  if (isMoving("backward")) moveDelta.sub(moveForward);
+  if (isMoving("right")) moveDelta.add(moveRight);
+  if (isMoving("left")) moveDelta.sub(moveRight);
+  if (isMoving("up")) moveDelta.y += 1;
+  if (isMoving("down")) moveDelta.y -= 1;
+
+  if (moveDelta.lengthSq() === 0) return;
+  moveDelta.normalize().multiplyScalar(distance);
+  translateCamera(moveDelta);
+}
+
+function moveSingleDirection(direction, distance) {
+  moveDelta.set(0, 0, 0);
+  updateMoveBasis();
+  addDirectionToVector(direction, moveDelta);
+
+  if (moveDelta.lengthSq() === 0) return;
+  moveDelta.normalize().multiplyScalar(distance);
+  translateCamera(moveDelta);
+}
+
+function addDirectionToVector(direction, targetVector) {
+  if (direction === "forward") targetVector.add(moveForward);
+  if (direction === "backward") targetVector.sub(moveForward);
+  if (direction === "right") targetVector.add(moveRight);
+  if (direction === "left") targetVector.sub(moveRight);
+  if (direction === "up") targetVector.y += 1;
+  if (direction === "down") targetVector.y -= 1;
+}
+
+function updateMoveBasis() {
+  moveRight.setFromMatrixColumn(camera.matrixWorld, 0);
+  moveRight.y = 0;
+
+  if (moveRight.lengthSq() < 0.0001) {
+    moveRight.set(1, 0, 0);
+  } else {
+    moveRight.normalize();
+  }
+
+  moveForward.crossVectors(camera.up, moveRight).normalize();
+}
+
+function getMovementSpeed() {
+  return THREE.MathUtils.clamp(camera.position.distanceTo(controls.target) * 1.15, 4.5, 18);
+}
+
+function getButtonNudgeDistance() {
+  return THREE.MathUtils.clamp(camera.position.distanceTo(controls.target) * 0.065, 0.35, 1.7);
+}
+
+function translateCamera(delta) {
+  camera.position.add(delta);
+  controls.target.add(delta);
+  controls.update();
+}
+
+function handleTouchStart(event) {
+  if (event.pointerType !== "touch") return;
+
+  activeTouchPointers.add(event.pointerId);
+  if (activeTouchPointers.size !== 1) {
+    touchStart = null;
+    return;
+  }
+
+  touchStart = {
+    x: event.clientX,
+    y: event.clientY,
+    time: performance.now(),
+  };
+}
+
+function handleTouchEnd(event) {
+  if (event.pointerType !== "touch") return;
+
+  const wasSingleTouch = activeTouchPointers.size === 1;
+  activeTouchPointers.delete(event.pointerId);
+
+  if (!wasSingleTouch || !touchStart) return;
+
+  const now = performance.now();
+  const moved = Math.hypot(event.clientX - touchStart.x, event.clientY - touchStart.y);
+  const isTap = moved < 16 && now - touchStart.time < 320;
+  touchStart = null;
+
+  if (!isTap) return;
+
+  const currentTap = { x: event.clientX, y: event.clientY, time: now };
+  const isDoubleTap =
+    lastTap &&
+    currentTap.time - lastTap.time < 360 &&
+    Math.hypot(currentTap.x - lastTap.x, currentTap.y - lastTap.y) < 26;
+
+  if (isDoubleTap) {
+    lastTap = null;
+    focusOnSpot(event);
+  } else {
+    lastTap = currentTap;
+  }
+}
+
+function handleTouchCancel(event) {
+  if (event.pointerType !== "touch") return;
+  activeTouchPointers.delete(event.pointerId);
+  touchStart = null;
+}
+
+function focusOnSpot(event) {
+  const hit = pickScenePoint(event);
+  if (!hit) return;
+
+  focusTarget.copy(hit.point);
+  focusDirection.subVectors(camera.position, controls.target).normalize();
+
+  if (focusDirection.lengthSq() === 0) {
+    focusDirection.set(0, 0.35, 1).normalize();
+  }
+
+  const nextDistance = THREE.MathUtils.clamp(camera.position.distanceTo(controls.target) * 0.44, 1.35, 6.5);
+  focusPosition.copy(focusTarget).addScaledVector(focusDirection, nextDistance);
+
+  flyTo({ position: focusPosition.clone(), target: focusTarget.clone() });
+}
+
+function pickScenePoint(event) {
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+
+  const targets = modelRoot ? [modelRoot, ground] : [ground];
+  const hits = raycaster.intersectObjects(targets, true);
+  return hits[0] ?? null;
 }
 
 function normaliseModel(root, config) {
@@ -525,8 +837,11 @@ function resize() {
   renderer.setSize(width, height);
 }
 
-function animate() {
+function animate(now = performance.now()) {
   requestAnimationFrame(animate);
+  const deltaSeconds = Math.min((now - lastFrameTime) / 1000, 0.05);
+  lastFrameTime = now;
+  applyCameraMovement(deltaSeconds);
   controls.update();
   if (modelRoot) {
     raycaster.setFromCamera(pointer, camera);
