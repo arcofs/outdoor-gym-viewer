@@ -62,7 +62,7 @@ const modelOptions = {
     label: "Port Haven",
     location: "Port Haven",
     title: "Outdoor Gym 3D Review",
-    url: "/models/port-haven-outdoor-gym.glb",
+    url: "/models/port-haven-outdoor-gym.glb?v=20260628-textured-r2",
     asset: "port-haven-outdoor-gym.glb",
     rootName: "Port Haven outdoor gym model",
     targetSize: 26,
@@ -444,7 +444,6 @@ function normaliseModel(root, config) {
     if (node.material) {
       const materials = Array.isArray(node.material) ? node.material : [node.material];
       materials.forEach((material) => {
-        material.side = THREE.FrontSide;
         material.needsUpdate = true;
       });
     }
