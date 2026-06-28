@@ -1,5 +1,6 @@
 node_modules/
 dist/
 .vite/
+tmp/
 npm-debug.log*
 .DS_Store
