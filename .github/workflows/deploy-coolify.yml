@@ -1,0 +1,24 @@
+name: Deploy to Coolify
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Trigger Coolify deployment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Coolify
+        env:
+          COOLIFY_BASE_URL: ${{ secrets.COOLIFY_BASE_URL }}
+          COOLIFY_ACCESS_TOKEN: ${{ secrets.COOLIFY_ACCESS_TOKEN }}
+          COOLIFY_APP_UUID: ${{ vars.COOLIFY_APP_UUID }}
+        run: |
+          curl --fail --show-error --silent \
+            --request POST \
+            --header "Authorization: Bearer ${COOLIFY_ACCESS_TOKEN}" \
+            --header "Content-Type: application/json" \
+            "${COOLIFY_BASE_URL}/api/v1/deploy?uuid=${COOLIFY_APP_UUID}&force=false"
